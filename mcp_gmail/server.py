@@ -125,6 +125,7 @@ def get_email_thread(thread_id: str) -> str:
     return result
 
 
+
 # Tools
 @mcp.tool()
 def compose_email(
