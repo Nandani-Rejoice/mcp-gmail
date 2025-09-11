@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from mcp.server.fastmcp import FastMCP  # type: ignore
+from mcp.server.fastmcp import FastMCP
 
 from mcp_gmail.config import settings
 from mcp_gmail.gmail import (
@@ -32,8 +32,10 @@ service = get_gmail_service(
 )
 
 mcp = FastMCP(
-    "Gmail MCP Server",
-    instructions="Access and interact with Gmail. You can get messages, threads, search emails, and send or compose new messages.",  # noqa: E501
+    name="Gmail MCP Server",
+    port=8000,
+    instructions="Access and interact with Gmail. You can get messages, threads, search emails, and send or compose new messages.",
+
 )
 
 EMAIL_PREVIEW_LENGTH = 200
@@ -247,7 +249,7 @@ def search_emails(
 
     for msg_info in messages:
         msg_id = msg_info.get("id")
-        message = get_message(service, msg_id, user_id=settings.user_id)  # type: ignore
+        message = get_message(service, msg_id, user_id=settings.user_id)
         headers = get_headers_dict(message)
 
         from_header = headers.get("From", "Unknown")
@@ -280,7 +282,7 @@ def query_emails(query: str, max_results: int = 10) -> str:
 
     for msg_info in messages:
         msg_id = msg_info.get("id")
-        message = get_message(service, msg_id, user_id=settings.user_id)  # type: ignore
+        message = get_message(service, msg_id, user_id=settings.user_id)
         headers = get_headers_dict(message)
 
         from_header = headers.get("From", "Unknown")
@@ -460,3 +462,6 @@ def get_emails(message_ids: list[str]) -> str:
             result += f"Error: {error}\n"
 
     return result
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
