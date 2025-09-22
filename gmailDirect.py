@@ -73,7 +73,7 @@ def fetch_new_emails(service, history_id):
                         full_msg = service.users().messages().get(
                             userId="me", id=msg_id, format="metadata", metadataHeaders=["Subject", "From"]
                         ).execute()
-                        snippet = full_msg.get("snippet", "<no snippet>")
+                        snippet = full_msg.get("snippet", "<no snippet>")--
                         subject, sender = "", ""
                         for header in full_msg["payload"].get("headers", []):
                             if header["name"] == "Subject":
