@@ -27,7 +27,7 @@ response = service.users().watch(userId="me", body=body).execute()
 print("Gmail watch started:", response)
 
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\mcp-gmail\service-account.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "D//mcp-gmail//service-account.json"
 
 # ---------------------------
 # Config

@@ -1,8 +1,17 @@
 import os
 import time
+import re
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from db import fetch_client_emails
+from datetime import datetime
+from auth import get_gmail_service
+
+
+# Initialize the Gmail service
+service = get_gmail_service()
 
 # ------------------------------------------------------------
 # Gmail API Setup
@@ -26,11 +35,14 @@ def fetch_new_emails(service):
     global last_history_id
     try:
         profile = service.users().getProfile(userId="me").execute()
-        email_address = profile["emailAddress"]
+        new_email = profile["emailAddress"]
+        
+        # Fetch client emails once 
+        client_emails = fetch_client_emails()
 
         if last_history_id is None:
             last_history_id = profile["historyId"]
-            print(f"✅ Gmail Trigger initialized for {email_address}, historyId={last_history_id}")
+            print(f"✅ Gmail Trigger initialized for {new_email}, historyId={last_history_id}")
             return []
 
         history = service.users().history().list(
@@ -46,23 +58,53 @@ def fetch_new_emails(service):
                     for msg in record["messagesAdded"]:
                         msg_id = msg["message"]["id"]
                         full_msg = service.users().messages().get(
-                            userId="me", id=msg_id, format="metadata", metadataHeaders=["Subject", "From"]
+                            userId="me", id=msg_id, format="metadata", metadataHeaders=["Subject", "From","LabelIds","Date"]
                         ).execute()
 
-                        subject, sender = "", ""
+                        subject, sender, date = "", "", ""
                         for header in full_msg["payload"].get("headers", []):
                             if header["name"] == "Subject":
                                 subject = header["value"]
                             if header["name"] == "From":
-                                sender = header["value"]
+                                sender = re.search(r'<(.*?)>', header["value"])  # Extract the email address
+                                if sender:
+                                    sender = sender.group(1)  # Get the email from the regex match
+                                else:
+                                    sender = header["value"]  # Fallback to full value if no angle brackets
+                            if header["name"] == "Date":
+                                date = header["value"]
+
+                         # Convert the date to the required format (YYYY-MM-DD HH:MM:SS.ssssss)
+                        if date:
+                            try:
+                                # Parse the Gmail date string into a datetime object
+                                parsed_date = datetime.strptime(date, "%a, %d %b %Y %H:%M:%S %z")
+
+                                # Convert to the format required by Supabase (YYYY-MM-DD HH:MM:SS.ssssss)
+                                formatted_date = parsed_date.strftime("%Y-%m-%d %H:%M:%S") + "." + str(parsed_date.microsecond).zfill(6)
+                            except ValueError as e:
+                                print(f"⚠️ Error parsing date: {e}")
+                                formatted_date = None
+                        else:
+                                formatted_date = None
+
+                         # Check if the email has the "IMPORTANT" label
+                        is_important = "IMPORTANT" in full_msg.get("labelIds", [])
+
+                        # Only continue if sender is in client emails
+                        if sender not in client_emails:
+                            print(f"❌ Skipping {sender}, not in client list {client_emails}")
+                            continue  # Skip this email and move to the next one
 
                         snippet = full_msg.get("snippet", "")
                         messages.append({
                             "id": msg_id,
                             "from": sender,
                             "subject": subject,
-                            "snippet": snippet,
-                            "emailAddress": email_address,
+                            "body": snippet,
+                            "emailAddress": new_email,
+                            "is_important": is_important,
+                            "date": formatted_date
                         })
 
         if "historyId" in history:
@@ -92,8 +134,9 @@ if __name__ == "__main__":
             if new_emails:
                 no_email_counter = 0  # reset counter when new email arrives
                 print(f"📬 {len(new_emails)} new email(s):")
+                print(new_emails)
                 for email in new_emails:
-                    print(f"- From: {email['from']} | Subject: {email['subject']} | Body: {email['snippet']}")
+                    pass
             else:
                 no_email_counter += 1
                 # Log a heartbeat every HEARTBEAT_INTERVAL cycles (~HEARTBEAT_INTERVAL * 3 seconds)
