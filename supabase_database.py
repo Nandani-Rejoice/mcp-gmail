@@ -11,11 +11,13 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 # ---------------------------
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 def fetch_client_emails():
     """Fetch client emails from Supabase table 'clients'."""
     data = supabase.table("clients").select("contact_email").execute()
     emails = [row["contact_email"] for row in data.data]
     return emails
+
 
 if __name__ == "__main__":
     client_emails = fetch_client_emails()
